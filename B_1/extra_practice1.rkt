@@ -1,0 +1,86 @@
+#lang racket
+(provide (all-defined-out))
+
+; Some simple examples of generating and using streams.
+(define (make-stream recursion n0)
+        (letrec ([f (lambda (n) (cons n (lambda () (f (recursion n)))))])
+                (lambda () (f n0))))
+(define nat-simple (make-stream (lambda (n) (+ n 1)) 1))
+(define powers-of-two-simple (make-stream (lambda (n) (* n 2)) 2))
+(define (print-n-elements stream n)
+        (let ([pr (stream)])
+             (if (= n 1)
+                 (display (car pr))
+                 (begin (display (car pr))
+                        (display " ")
+                        (print-n-elements (cdr pr) (- n 1))))))
+(define (callatz n)
+        (if (= (remainder n 2) 0)
+            (/ n 2)
+            (+ (* 3 n) 1)))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; 1 ;
+(define (rev xs)
+        (letrec ([f (lambda (xs acc)
+                         (if (null? xs)
+                             acc
+                             (f (cdr xs) (cons (car xs) acc))))])
+             (f xs null)))
+(define (add xs ys)
+        (if (null? xs)
+            null
+            (cons (+ (car xs) (car ys)) (add (cdr xs) (cdr ys)))))
+(define (palindromic xs)
+        (let ([rev_xs (rev xs)]) (add xs rev_xs)))
+; 2 ;
+(define (fibonacci)
+        (letrec ([f (lambda (n1 n2)
+                            (cons (+ n1 n2) (lambda () (f n2 (+ n1 n2)))))])
+                (cons 0 (lambda () (cons 1 (lambda () (f 0 1)))))))
+; 3 ;
+(define (stream-until f stream)
+        (let ([pr (stream)])
+             (if (f (car pr))
+                 (+ 1 (stream-until f (cdr pr)))
+                 1)))
+; 4 ;
+(define (stream-map f stream)
+        (letrec ([iter (lambda (s)
+                               (let ([pr (s)])
+                                    (cons (f (car pr)) (lambda () (iter (cdr pr))))))])
+                (lambda () (iter stream))))
+; 5 ;
+(define (stream-zip stream1 stream2)
+        (letrec ([iter (lambda (s1 s2)
+                               (let ([pr1 (s1)] [pr2 (s2)])
+                                    (cons (cons (car pr1) (car pr2)) (lambda () (iter (cdr pr1) (cdr pr2))))))])
+                (lambda () (iter stream1 stream2))))
+; 7 ;
+(define (interleave streams)
+        (letrec ([f (lambda (strs updated-strs)
+                            (if (null? strs)
+                                (f (rev updated-strs) null)
+                                (let ([pr ((car strs))])
+                                     (cons (car pr) (lambda () (f (cdr strs) (cons (cdr pr) updated-strs)))))))])
+                (lambda () (f streams null))))
+; 8 ;
+(define (pack n stream)
+        (letrec ([f (lambda (i lst s)
+                            (if (= i n)
+                                (cons (rev lst) (lambda () (f 0 null s)))
+                                (let ([pr (s)])
+                                     (f (+ i 1) (cons (car pr) lst) (cdr pr)))))])
+                (lambda () (f 0 null stream))))
+; 9 ;
+(define (sqrt-stream n)
+        (letrec ([f (lambda (x) (* 0.5 (+ x (/ n x))))])
+                (make-stream f n)))
+; 10 ;
+(define (first-element pred stream)
+        (let ([pr (stream)])
+             (if (pred (car pr))
+                 (car pr)
+                 (first-element pred (cdr pr)))))
+(define (approx-sqrt n eps)
+        (first-element (lambda (x) (< (abs (- (* x x) n)) eps)) (sqrt-stream n)))
